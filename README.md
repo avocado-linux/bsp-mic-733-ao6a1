@@ -21,5 +21,12 @@ runtimes:
       - avocado-bsp-mic-733-ao6a1
 ```
 
-Then `avocado build`. The extension's config is fetched from your target's package feed
-and merged into your project at build time.
+Then install and build:
+
+```sh
+avocado install   # fetches + installs the SDK, extensions and runtime deps from your config
+avocado build     # builds the SDK compile steps, extensions and runtime images
+```
+
+`avocado install` pulls the extension from your target's package feed and merges its
+config into your project; `avocado build` then produces the runtime.
