@@ -4,7 +4,7 @@ supported_targets:
 
 extensions:
   avocado-bsp-mic-733-ao6a1:
-    version: 2024.1.0
+    version: 0.1.0
     release: r0
     summary: Board support for the Advantech MIC-733-AO6A1 (carrier extension on jetson-agx-orin)
     description: |
@@ -203,4 +203,4 @@ extensions:
         linux-firmware-rtl8822: '*'
 
 sdk:
-  image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}-{{ env.AVOCADO_DISTRO_CHANNEL }}
+  image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
