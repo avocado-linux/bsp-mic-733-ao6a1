@@ -24,16 +24,19 @@ extensions:
       explicit vs. the stock NVIDIA filenames the MACHINE bakes. The
       sku-driven files use the 0005 variants the conf selects for 64GB:
         * tegra234-p3737-0000+p3701-0005-nv-adv.dtb (kernel DTB) —
-          carrier I/O nodes + 64GB SOM-specific power management.
-          Vendor DTB has a latent misconfig where pcie@141e0000 (C8)
-          declares its 8 phys against `p2u_gbe_*` lanes (GBE UPHY,
-          which MB1 explicitly skips on this board: `W> Skipping GBE
-          UPHY config`). Walking those phys at boot reads unpowered
-          register blocks and tripped a fatal RAS UE in BL31 at
-          ADDR=0x3f600c0 (= phy@3f60000 + 0xc0 = p2u_gbe_4). Our
-          copy sets pcie@141e0000 status to "disabled". The carrier
-          doesn't expose C8 (4× MGBE, mini-PCIe, M.2 — all on other
-          controllers), so disabling it is safe.
+          byte-identical to the Advantech-flashed vendor DTB. The
+          carrier's four 10GbE ports are two Intel X550 dual-port NICs
+          (8086:1563) on PCIe controllers C7 (pcie@141a0000) and C8
+          (pcie@141e0000), both x8; `ixgbe` drives all four. (The on-SoC
+          MGBE/EQOS are unused — factory runtime DT and lsmod confirm
+          they stay disabled.) C8's PHYs are GBE-UPHY lanes, so it only
+          comes up when MB1 routes the GBE UPHY to PCIe via the factory
+          ODMDATA (gbe-uphy-config-0 / hsio-uphy-config-16, set as
+          CARRIER_ENV_ODMDATA in carrier.env). Without that ODMDATA the
+          GBE UPHY is left unpowered (`W> Skipping GBE UPHY config`) and
+          probing C8 trips a fatal RAS UE at p2u_gbe_4 (0x3f600c0) — the
+          reason an earlier revision disabled C8 and lost X550 #2 (ports
+          3 & 4). With the ODMDATA override in place, C8 is left enabled.
       The BPMP DTB is the unmodified upstream
       tegra234-bpmp-3701-0005-3737-0000.dtb (selected by p3701.conf.common
       for board_sku 0005); no carrier override.
@@ -104,12 +107,14 @@ extensions:
       kernel-module-mc-hwpm: '*'
       kernel-module-mc-utils: '*'
       # Ethernet
-      # - nvethernet: NVIDIA OOT MGBE driver for the 4× on-SoC MGBE ports
-      #   wired through the carrier (resolved via nv-kernel-module-nvethernet
-      #   `Provides: kernel-module-nvethernet`).
-      # - ixgbe: in-tree Intel driver for the X550 dual-port 10GbE on the
-      #   PCIe riser card (CONFIG_IXGBE=m in avocado-extra.cfg).
-      # - stmmac: alt-kernel (5.15) MAC path; harmless on 6.6.
+      # - ixgbe: in-tree Intel driver for the carrier's two X550 dual-port
+      #   10GbE NICs (8086:1563) on PCIe C7 (141a0000) and C8 (141e0000) —
+      #   all four front 10GbE ports. C8 requires the GBE-UPHY ODMDATA
+      #   override (CARRIER_ENV_ODMDATA in carrier.env); see the DTB note in
+      #   the description above. (CONFIG_IXGBE=m in avocado-extra.cfg.)
+      # - nvethernet/stmmac: on-SoC MGBE/EQOS drivers. The carrier does NOT
+      #   wire out the on-SoC MACs (factory leaves them disabled), so these
+      #   never bind; kept only for parity with the SOM module set.
       kernel-module-nvethernet: '*'
       kernel-module-ixgbe: '*'
       kernel-module-stmmac: '*'
