@@ -1,10 +1,11 @@
-default_target: jetson-agx-orin-devkit
+default_target: jetson-agx-orin
 supported_targets:
-  - jetson-agx-orin-devkit
+  - jetson-agx-orin          # 2026 feed
+  - jetson-agx-orin-devkit  # 2024 feed
 
 extensions:
   avocado-bsp-mic-733-ao6a1:
-    version: 0.1.1
+    version: 0.2.0
     release: r0
     summary: Board support for the Advantech MIC-733-AO6A1 (carrier extension on jetson-agx-orin)
     description: |

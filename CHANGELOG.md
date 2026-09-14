@@ -4,6 +4,21 @@ All notable changes to avocado-bsp-mic-733-ao6a1 are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0]
+
+### Fixed
+- **Publishes to the 2026 feed under the target name that feed actually has.**
+  Both release legs named `jetson-agx-orin-devkit`. That target exists in the
+  2024 feed but not in 2026, so the 2026 leg landed in an orphan
+  `jetson-agx-orin-devkit-ext` repo that no 2026 device resolves, and
+  `2026/next/target/jetson-agx-orin-ext` carried no carrier support at all.
+  The 2026 leg now names `jetson-agx-orin`; the 2024 leg keeps
+  `jetson-agx-orin-devkit` until the scarthgap rename reaches that feed.
+
+### Added
+- `test.yml` gains the 2026 leg, so the combination that was broken is the one
+  CI checks.
+
 ## [0.1.1]
 
 ### Fixed
