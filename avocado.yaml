@@ -87,6 +87,11 @@ extensions:
     # tree); without it there is no /dev/i2c-*. Built in on 6.18, a module on 6.8.
     modprobe:
       - i2c-dev
+      # nvidia-drm-loadconf's /etc/modules-load.d entry arrives with the
+      # confext merge, after systemd-modules-load has run, so it never loads
+      # the module at boot. Load it here; the modeset/fbdev options in its
+      # /etc/modprobe.d file apply.
+      - nvidia-drm
 
     on_merge:
       - udevadm control --reload
@@ -133,6 +138,9 @@ extensions:
       kernel-module-nvhwpm: '*'
       kernel-module-nvidia: '*'
       kernel-module-nvidia-drm: '*'
+      # modeset=1 fbdev=1 and autoload for nvidia-drm: without it the module is
+      # installed but never loaded, so there is no KMS device or fbcon.
+      nvidia-drm-loadconf: '*'
       kernel-module-nvidia-modeset: '*'
       kernel-module-nvidia-vrs-pseq: '*'
       kernel-module-nvmap: '*'
