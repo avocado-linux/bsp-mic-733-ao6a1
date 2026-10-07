@@ -24,20 +24,20 @@ extensions:
       Files ship with an `-adv` suffix to make their carrier origin
       explicit vs. the stock NVIDIA filenames the MACHINE bakes. The
       sku-driven files use the 0005 variants the conf selects for 64GB:
-        * tegra234-p3737-0000+p3701-0005-nv-adv.dtb (kernel DTB) —
-          byte-identical to the Advantech-flashed vendor DTB. The
-          carrier's four 10GbE ports are two Intel X550 dual-port NICs
-          (8086:1563) on PCIe controllers C7 (pcie@141a0000) and C8
-          (pcie@141e0000), both x8; `ixgbe` drives all four. (The on-SoC
-          MGBE/EQOS are unused — factory runtime DT and lsmod confirm
-          they stay disabled.) C8's PHYs are GBE-UPHY lanes, so it only
-          comes up when MB1 routes the GBE UPHY to PCIe via the factory
-          ODMDATA (gbe-uphy-config-0 / hsio-uphy-config-16, set as
-          CARRIER_ENV_ODMDATA in carrier.env). Without that ODMDATA the
-          GBE UPHY is left unpowered (`W> Skipping GBE UPHY config`) and
-          probing C8 trips a fatal RAS UE at p2u_gbe_4 (0x3f600c0) — the
-          reason an earlier revision disabled C8 and lost X550 #2 (ports
-          3 & 4). With the ODMDATA override in place, C8 is left enabled.
+        * Kernel DTB: the stock r39 tegra234-p3737-0000+p3701-0005-nv.dtb
+          plus tegra234-mic-733-carrier.dtbo (CARRIER_FV_OVERLAY_DTB_FILE),
+          which enables PCIe C7 (pcie@141a0000, x8) and C8 (pcie@141e0000).
+          Advantech's full vendor DTB predates r39 and makes the r39 UEFI
+          assert in PcieControllerDxe, so the carrier delta lives in the
+          overlay. C7 carries an Intel X550 dual-port 10GbE (8086:1563,
+          ixgbe). C8's NIC varies by unit: a second X550 (ports 3 and 4) on
+          some, an Intel I350 quad 1GbE (8086:1521, igb) on the bench unit;
+          both drivers ship. (The on-SoC MGBE/EQOS are unused.) C8's PHYs are
+          GBE-UPHY lanes, so it only comes up when MB1 routes the GBE UPHY to
+          PCIe via the factory ODMDATA (gbe-uphy-config-0 /
+          hsio-uphy-config-16, CARRIER_ENV_ODMDATA in carrier.env). Without
+          it the GBE UPHY is left unpowered (`W> Skipping GBE UPHY config`)
+          and probing C8 trips a fatal RAS UE at p2u_gbe_4 (0x3f600c0).
       The BPMP DTB is the unmodified upstream
       tegra234-bpmp-3701-0005-3737-0000.dtb (selected by p3701.conf.common
       for board_sku 0005); no carrier override.
