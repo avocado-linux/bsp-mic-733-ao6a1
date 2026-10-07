@@ -97,7 +97,6 @@ extensions:
     packages:
       kernel-module-at24: '*'
       kernel-module-cec: '*'
-      kernel-module-crct10dif-ce: '*'
       kernel-module-fusb301: '*'
       kernel-module-governor-pod-scaling: '*'
       kernel-module-governor-userspace: '*'
@@ -117,7 +116,6 @@ extensions:
       #   wire out the on-SoC MACs (factory leaves them disabled), so these
       #   never bind; kept only for parity with the SOM module set.
       kernel-module-nvethernet: '*'
-      kernel-module-ixgbe: '*'
       kernel-module-stmmac: '*'
       kernel-module-nvgpu: '*'
       kernel-module-nvhwpm: '*'
@@ -146,18 +144,18 @@ extensions:
       kernel-module-snd-soc-tegra-pcm: '*'
       kernel-module-snd-soc-tegra-utils: '*'
       kernel-module-snd-soc-tegra186-arad: '*'
-      nv-kernel-module-snd-soc-tegra186-asrc: '*'
-      nv-kernel-module-snd-soc-tegra186-dspk: '*'
-      nv-kernel-module-snd-soc-tegra210-admaif: '*'
-      nv-kernel-module-snd-soc-tegra210-adx: '*'
-      nv-kernel-module-snd-soc-tegra210-ahub: '*'
-      nv-kernel-module-snd-soc-tegra210-amx: '*'
-      nv-kernel-module-snd-soc-tegra210-dmic: '*'
-      nv-kernel-module-snd-soc-tegra210-i2s: '*'
-      nv-kernel-module-snd-soc-tegra210-mixer: '*'
-      nv-kernel-module-snd-soc-tegra210-mvc: '*'
-      nv-kernel-module-snd-soc-tegra210-ope: '*'
-      nv-kernel-module-snd-soc-tegra210-sfc: '*'
+      kernel-module-snd-soc-tegra186-asrc: '*'
+      kernel-module-snd-soc-tegra186-dspk: '*'
+      kernel-module-snd-soc-tegra210-admaif: '*'
+      kernel-module-snd-soc-tegra210-adx: '*'
+      kernel-module-snd-soc-tegra210-ahub: '*'
+      kernel-module-snd-soc-tegra210-amx: '*'
+      kernel-module-snd-soc-tegra210-dmic: '*'
+      kernel-module-snd-soc-tegra210-i2s: '*'
+      kernel-module-snd-soc-tegra210-mixer: '*'
+      kernel-module-snd-soc-tegra210-mvc: '*'
+      kernel-module-snd-soc-tegra210-ope: '*'
+      kernel-module-snd-soc-tegra210-sfc: '*'
       kernel-module-spi-tegra114: '*'
       kernel-module-spidev: '*'
       kernel-module-tegra-aconnect: '*'
@@ -183,16 +181,22 @@ extensions:
       cuda-cudart: '*'
       tegra-configs-udev: '*'
       tegra-libraries-cuda: '*'
-      tegra-nvphs: '*'
       tegra-nvpower: '*'
       tegra-nvsciipc: '*'
-      tegra-nvstartup: '*'
 
     # 5.15 (linux-jammy-nvidia-tegra) uses NVIDIA's downstream Realtek shim
     # for any M.2 wifi card; mainline rtw88 isn't built for this kernel.
     # Mirrors bsp/jetson-agx-orin-devkit/avocado.yaml.
+    # --- 2024 feed (scarthgap) kernels -------------------------------------
+    # tegra-nvphs, tegra-nvstartup and crct10dif-ce exist only in the 2024
+    # feed; ixgbe is a module on every kernel except linux-yocto 6.18, which
+    # does not build it yet. They are scoped per kernel rather than common.
     kernel-5.15.*:
       packages:
+        kernel-module-crct10dif-ce: '*'
+        kernel-module-ixgbe: '*'
+        tegra-nvphs: '*'
+        tegra-nvstartup: '*'
         nv-kernel-module-rtl8822ce: '*'
         tegra-firmware-rtl8822: '*'
 
@@ -201,12 +205,33 @@ extensions:
     # into drm.ko. Use the upstream rtw88 family for any 8822CE M.2 wifi.
     kernel-6.6.*:
       packages:
+        kernel-module-crct10dif-ce: '*'
+        kernel-module-ixgbe: '*'
+        tegra-nvphs: '*'
+        tegra-nvstartup: '*'
         kernel-module-drm-display-helper: '*'
         kernel-module-rtw88-8822c: '*'
         kernel-module-rtw88-8822ce: '*'
         kernel-module-rtw88-core: '*'
         kernel-module-rtw88-pci: '*'
         linux-firmware-rtl8822: '*'
+
+    # --- 2026 feed (wrynose) kernels ---------------------------------------
+
+    # 6.8 (linux-noble-nvidia-tegra, L4T r39.2). ixgbe drives the carrier's
+    # four 10GbE ports. crct10dif-ce is a module only on this kernel.
+    kernel-6.8.*:
+      packages:
+        kernel-module-crct10dif-ce: '*'
+        kernel-module-ixgbe: '*'
+
+    # 6.18 (linux-yocto, the 2026 default). drm-display-helper is a separate
+    # module here (the L4T kernel links it into drm.ko). No ixgbe: the
+    # kernel config does not enable CONFIG_IXGBE yet, so the four 10GbE
+    # ports have no driver on this kernel until it does.
+    kernel-6.18.*:
+      packages:
+        kernel-module-drm-display-helper: '*'
 
 sdk:
   image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
