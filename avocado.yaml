@@ -1,10 +1,11 @@
-default_target: jetson-agx-orin-devkit
+default_target: jetson-agx-orin
 supported_targets:
-  - jetson-agx-orin-devkit
+  - jetson-agx-orin          # 2026 feed
+  - jetson-agx-orin-devkit  # 2024 feed
 
 extensions:
   avocado-bsp-mic-733-ao6a1:
-    version: 0.1.1
+    version: 0.2.1
     release: r0
     summary: Board support for the Advantech MIC-733-AO6A1 (carrier extension on jetson-agx-orin)
     description: |
@@ -23,20 +24,20 @@ extensions:
       Files ship with an `-adv` suffix to make their carrier origin
       explicit vs. the stock NVIDIA filenames the MACHINE bakes. The
       sku-driven files use the 0005 variants the conf selects for 64GB:
-        * tegra234-p3737-0000+p3701-0005-nv-adv.dtb (kernel DTB) —
-          byte-identical to the Advantech-flashed vendor DTB. The
-          carrier's four 10GbE ports are two Intel X550 dual-port NICs
-          (8086:1563) on PCIe controllers C7 (pcie@141a0000) and C8
-          (pcie@141e0000), both x8; `ixgbe` drives all four. (The on-SoC
-          MGBE/EQOS are unused — factory runtime DT and lsmod confirm
-          they stay disabled.) C8's PHYs are GBE-UPHY lanes, so it only
-          comes up when MB1 routes the GBE UPHY to PCIe via the factory
-          ODMDATA (gbe-uphy-config-0 / hsio-uphy-config-16, set as
-          CARRIER_ENV_ODMDATA in carrier.env). Without that ODMDATA the
-          GBE UPHY is left unpowered (`W> Skipping GBE UPHY config`) and
-          probing C8 trips a fatal RAS UE at p2u_gbe_4 (0x3f600c0) — the
-          reason an earlier revision disabled C8 and lost X550 #2 (ports
-          3 & 4). With the ODMDATA override in place, C8 is left enabled.
+        * Kernel DTB: the stock r39 tegra234-p3737-0000+p3701-0005-nv.dtb
+          plus tegra234-mic-733-carrier.dtbo (CARRIER_FV_OVERLAY_DTB_FILE),
+          which enables PCIe C7 (pcie@141a0000, x8) and C8 (pcie@141e0000).
+          Advantech's full vendor DTB predates r39 and makes the r39 UEFI
+          assert in PcieControllerDxe, so the carrier delta lives in the
+          overlay. C7 carries an Intel X550 dual-port 10GbE (8086:1563,
+          ixgbe). C8's NIC varies by unit: a second X550 (ports 3 and 4) on
+          some, an Intel I350 quad 1GbE (8086:1521, igb) on the bench unit;
+          both drivers ship. (The on-SoC MGBE/EQOS are unused.) C8's PHYs are
+          GBE-UPHY lanes, so it only comes up when MB1 routes the GBE UPHY to
+          PCIe via the factory ODMDATA (gbe-uphy-config-0 /
+          hsio-uphy-config-16, CARRIER_ENV_ODMDATA in carrier.env). Without
+          it the GBE UPHY is left unpowered (`W> Skipping GBE UPHY config`)
+          and probing C8 trips a fatal RAS UE at p2u_gbe_4 (0x3f600c0).
       The BPMP DTB is the unmodified upstream
       tegra234-bpmp-3701-0005-3737-0000.dtb (selected by p3701.conf.common
       for board_sku 0005); no carrier override.
@@ -82,6 +83,16 @@ extensions:
     # `avocado-jetson-agx-orin` default.
     overlay: overlay
 
+    # i2c-dev never autoloads (the Tegra I2C controllers load from the device
+    # tree); without it there is no /dev/i2c-*. Built in on 6.18, a module on 6.8.
+    modprobe:
+      - i2c-dev
+      # nvidia-drm-loadconf's /etc/modules-load.d entry arrives with the
+      # confext merge, after systemd-modules-load has run, so it never loads
+      # the module at boot. Load it here; the modeset/fbdev options in its
+      # /etc/modprobe.d file apply.
+      - nvidia-drm
+
     on_merge:
       - udevadm control --reload
       - udevadm trigger --type=subsystems --action=add --settle
@@ -96,7 +107,6 @@ extensions:
     packages:
       kernel-module-at24: '*'
       kernel-module-cec: '*'
-      kernel-module-crct10dif-ce: '*'
       kernel-module-fusb301: '*'
       kernel-module-governor-pod-scaling: '*'
       kernel-module-governor-userspace: '*'
@@ -115,13 +125,22 @@ extensions:
       # - nvethernet/stmmac: on-SoC MGBE/EQOS drivers. The carrier does NOT
       #   wire out the on-SoC MACs (factory leaves them disabled), so these
       #   never bind; kept only for parity with the SOM module set.
-      kernel-module-nvethernet: '*'
+      # Carrier Ethernet: Intel NICs on PCIe. ixgbe drives the X550 10GbE on
+      # C7; igb drives the I350 quad 1GbE seen on C8 on the bench unit (C8 needs
+      # the GBE UPHY routed to PCIe via CARRIER_ENV_ODMDATA). Both are modules
+      # on every kernel the feeds serve (linux-yocto 6.18 needs meta-avocado's
+      # CONFIG_IXGBE/CONFIG_IGB).
       kernel-module-ixgbe: '*'
+      kernel-module-igb: '*'
+      kernel-module-nvethernet: '*'
       kernel-module-stmmac: '*'
       kernel-module-nvgpu: '*'
       kernel-module-nvhwpm: '*'
       kernel-module-nvidia: '*'
       kernel-module-nvidia-drm: '*'
+      # modeset=1 fbdev=1 and autoload for nvidia-drm: without it the module is
+      # installed but never loaded, so there is no KMS device or fbcon.
+      nvidia-drm-loadconf: '*'
       kernel-module-nvidia-modeset: '*'
       kernel-module-nvidia-vrs-pseq: '*'
       kernel-module-nvmap: '*'
@@ -145,19 +164,25 @@ extensions:
       kernel-module-snd-soc-tegra-pcm: '*'
       kernel-module-snd-soc-tegra-utils: '*'
       kernel-module-snd-soc-tegra186-arad: '*'
-      nv-kernel-module-snd-soc-tegra186-asrc: '*'
-      nv-kernel-module-snd-soc-tegra186-dspk: '*'
-      nv-kernel-module-snd-soc-tegra210-admaif: '*'
-      nv-kernel-module-snd-soc-tegra210-adx: '*'
-      nv-kernel-module-snd-soc-tegra210-ahub: '*'
-      nv-kernel-module-snd-soc-tegra210-amx: '*'
-      nv-kernel-module-snd-soc-tegra210-dmic: '*'
-      nv-kernel-module-snd-soc-tegra210-i2s: '*'
-      nv-kernel-module-snd-soc-tegra210-mixer: '*'
-      nv-kernel-module-snd-soc-tegra210-mvc: '*'
-      nv-kernel-module-snd-soc-tegra210-ope: '*'
-      nv-kernel-module-snd-soc-tegra210-sfc: '*'
+      kernel-module-snd-soc-tegra186-asrc: '*'
+      kernel-module-snd-soc-tegra186-dspk: '*'
+      kernel-module-snd-soc-tegra210-admaif: '*'
+      kernel-module-snd-soc-tegra210-adx: '*'
+      kernel-module-snd-soc-tegra210-ahub: '*'
+      kernel-module-snd-soc-tegra210-amx: '*'
+      kernel-module-snd-soc-tegra210-dmic: '*'
+      kernel-module-snd-soc-tegra210-i2s: '*'
+      kernel-module-snd-soc-tegra210-mixer: '*'
+      kernel-module-snd-soc-tegra210-mvc: '*'
+      kernel-module-snd-soc-tegra210-ope: '*'
+      kernel-module-snd-soc-tegra210-sfc: '*'
       kernel-module-spi-tegra114: '*'
+      # CAN: the two Tegra234 MTTCAN controllers (c310000/c320000) use
+      # NVIDIA's out-of-tree mttcan driver on both kernels, over the in-tree
+      # CAN core (can-dev) and raw sockets (can-raw).
+      nv-kernel-module-mttcan: '*'
+      kernel-module-can-dev: '*'
+      kernel-module-can-raw: '*'
       kernel-module-spidev: '*'
       kernel-module-tegra-aconnect: '*'
       kernel-module-tegra-bpmp-thermal: '*'
@@ -182,16 +207,20 @@ extensions:
       cuda-cudart: '*'
       tegra-configs-udev: '*'
       tegra-libraries-cuda: '*'
-      tegra-nvphs: '*'
       tegra-nvpower: '*'
       tegra-nvsciipc: '*'
-      tegra-nvstartup: '*'
 
     # 5.15 (linux-jammy-nvidia-tegra) uses NVIDIA's downstream Realtek shim
     # for any M.2 wifi card; mainline rtw88 isn't built for this kernel.
     # Mirrors bsp/jetson-agx-orin-devkit/avocado.yaml.
+    # --- 2024 feed (scarthgap) kernels -------------------------------------
+    # tegra-nvphs, tegra-nvstartup and crct10dif-ce exist only in the 2024
+    # feed. They are scoped per kernel rather than common.
     kernel-5.15.*:
       packages:
+        kernel-module-crct10dif-ce: '*'
+        tegra-nvphs: '*'
+        tegra-nvstartup: '*'
         nv-kernel-module-rtl8822ce: '*'
         tegra-firmware-rtl8822: '*'
 
@@ -200,12 +229,34 @@ extensions:
     # into drm.ko. Use the upstream rtw88 family for any 8822CE M.2 wifi.
     kernel-6.6.*:
       packages:
+        kernel-module-crct10dif-ce: '*'
+        tegra-nvphs: '*'
+        tegra-nvstartup: '*'
         kernel-module-drm-display-helper: '*'
         kernel-module-rtw88-8822c: '*'
         kernel-module-rtw88-8822ce: '*'
         kernel-module-rtw88-core: '*'
         kernel-module-rtw88-pci: '*'
         linux-firmware-rtl8822: '*'
+
+    # --- 2026 feed (wrynose) kernels ---------------------------------------
+
+    # 6.8 (linux-noble-nvidia-tegra, L4T r39.2). crct10dif-ce is a module only
+    # on this kernel.
+    kernel-6.8.*:
+      packages:
+        kernel-module-crct10dif-ce: '*'
+        # I2C is modular on the L4T kernel (built in on linux-yocto 6.18):
+        # without these there are no I2C buses at all.
+        kernel-module-i2c-tegra: '*'
+        kernel-module-i2c-tegra-bpmp: '*'
+        kernel-module-i2c-dev: '*'
+
+    # 6.18 (linux-yocto, the 2026 default). drm-display-helper is a separate
+    # module here (the L4T kernel links it into drm.ko).
+    kernel-6.18.*:
+      packages:
+        kernel-module-drm-display-helper: '*'
 
 sdk:
   image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
