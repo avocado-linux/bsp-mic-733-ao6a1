@@ -84,13 +84,15 @@ extensions:
     overlay: overlay
 
     # i2c-dev never autoloads (the Tegra I2C controllers load from the device
-    # tree); without it there is no /dev/i2c-*. Built in on 6.18, a module on 6.8.
+    # tree); without it there is no /dev/i2c-*. Built in on 6.6 and 6.18, a
+    # module on 6.8.
     modprobe:
       - i2c-dev
       # nvidia-drm-loadconf's /etc/modules-load.d entry arrives with the
       # confext merge, after systemd-modules-load has run, so it never loads
-      # the module at boot. Load it here; the modeset/fbdev options in its
-      # /etc/modprobe.d file apply.
+      # the module at boot. Load it here. On the 2026 kernels the modeset/fbdev
+      # options in its /etc/modprobe.d file apply; on 2024 the package is not
+      # installed and nvidia-drm loads with modeset off, as before.
       - nvidia-drm
 
     on_merge:
@@ -138,9 +140,6 @@ extensions:
       kernel-module-nvhwpm: '*'
       kernel-module-nvidia: '*'
       kernel-module-nvidia-drm: '*'
-      # modeset=1 fbdev=1 and autoload for nvidia-drm: without it the module is
-      # installed but never loaded, so there is no KMS device or fbcon.
-      nvidia-drm-loadconf: '*'
       kernel-module-nvidia-modeset: '*'
       kernel-module-nvidia-vrs-pseq: '*'
       kernel-module-nvmap: '*'
@@ -251,12 +250,16 @@ extensions:
         kernel-module-i2c-tegra: '*'
         kernel-module-i2c-tegra-bpmp: '*'
         kernel-module-i2c-dev: '*'
+        # nvidia-drm KMS (modeset=1 fbdev=1). 2026 kernels only, so 2024
+        # devices keep their display behavior across this release.
+        nvidia-drm-loadconf: '*'
 
     # 6.18 (linux-yocto, the 2026 default). drm-display-helper is a separate
     # module here (the L4T kernel links it into drm.ko).
     kernel-6.18.*:
       packages:
         kernel-module-drm-display-helper: '*'
+        nvidia-drm-loadconf: '*'                    # as in kernel-6.8.*
 
 sdk:
   image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
