@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Advantech MIC-733 carrier delta on the stock Jetson AGX Orin (P3701-0005)
+ * r39 device tree. Build: dtc -@ -I dts -O dtb -o tegra234-mic-733-carrier.dtbo
+ *
+ * fragment@0  PCIe C8 (pcie@141e0000, x8 on the GBE UPHY): the carrier's second
+ *             Intel X550 dual-port NIC, front ports 3 and 4. Needs the GBE UPHY
+ *             routed to PCIe at MB1 (CARRIER_ENV_ODMDATA in carrier.env).
+ * fragment@1  PCIe C4 (pcie@14180000, x1 on HSIO lane 0).
+ *
+ * Both are disabled in the stock devkit tree. The PHY lists match Advantech's
+ * vendor DTB.
+ */
+/dts-v1/;
+/plugin/;
+
+/ {
+	overlay-name = "Advantech MIC-733 carrier";
+	compatible = "nvidia,p3737-0000+p3701-0005", "nvidia,tegra234";
+
+	fragment@0 {
+		target-path = "/bus@0/pcie@141e0000";
+		__overlay__ {
+			status = "okay";
+			phys = <&p2u_gbe_0>, <&p2u_gbe_1>, <&p2u_gbe_2>, <&p2u_gbe_3>,
+			       <&p2u_gbe_4>, <&p2u_gbe_5>, <&p2u_gbe_6>, <&p2u_gbe_7>;
+			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3",
+				    "p2u-4", "p2u-5", "p2u-6", "p2u-7";
+		};
+	};
+
+	fragment@1 {
+		target-path = "/bus@0/pcie@14180000";
+		__overlay__ {
+			status = "okay";
+			nvidia,max-speed = <3>;
+			phys = <&p2u_hsio_0>;
+			phy-names = "p2u-0";
+		};
+	};
+};
