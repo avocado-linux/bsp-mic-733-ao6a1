@@ -1,7 +1,6 @@
 default_target: jetson-agx-orin
 supported_targets:
-  - jetson-agx-orin          # 2026 feed
-  - jetson-agx-orin-devkit  # 2024 feed
+  - jetson-agx-orin
 
 extensions:
   avocado-bsp-mic-733-ao6a1:
